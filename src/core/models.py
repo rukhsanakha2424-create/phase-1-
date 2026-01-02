@@ -1,27 +1,26 @@
-from enum import Enum
-from dataclasses import dataclass, field
+"""Task models for the Todo application."""
+
+from dataclasses import dataclass
 from typing import Optional
 
-class TaskStatus(Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
-
-class TaskPriority(Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
 
 @dataclass
 class Task:
+    """Represents a single todo task.
+
+    Attributes:
+        id: Unique identifier (assigned by system)
+        description: User-provided task description
+        completed: Whether the task is complete (False by default)
+    """
     id: int
     description: str
-    status: TaskStatus = TaskStatus.PENDING
-    priority: TaskPriority = TaskPriority.MEDIUM
+    completed: bool = False
 
     def to_dict(self):
+        """Convert to dictionary (for potential future serialization)."""
         return {
             "id": self.id,
             "description": self.description,
-            "status": self.status.value,
-            "priority": self.priority.value
+            "completed": self.completed
         }

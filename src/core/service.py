@@ -1,75 +1,127 @@
+"""Task service for CRUD operations.
+
+Provides pure in-memory task management.
+Data resets on application restart per Phase-I spec.
+"""
+
 from typing import List, Optional
-from src.core.models import Task, TaskStatus, TaskPriority
-from src.core.storage import Storage
+from src.core.models import Task
+from src.core.storage import InMemoryStorage
 from src.utils.id_gen import IDGenerator
 
+
 class TaskService:
-    def __init__(self, storage: Optional[Storage] = None):
-        self._storage = storage or Storage()
-        self._tasks = {t.id: t for t in self._storage.load_tasks()}
+    """Service for managing tasks in memory.
+
+    All operations work on in-memory data only.
+    No file I/O, no persistence, data resets on restart.
+    """
+
+    def __init__(self, storage: Optional[InMemoryStorage] = None):
+        self._storage = storage or InMemoryStorage()
         self._id_gen = IDGenerator()
         # Advance ID generator past highest existing ID
-        if self._tasks:
-            max_id = max(t.id for t in self._tasks.values())
+        tasks = self._storage.get_all()
+        if tasks:
+            max_id = max(t.id for t in tasks)
             for _ in range(max_id):
                 self._id_gen.next_id()
 
-    def _save(self):
-        self._storage.save_tasks(list(self._tasks.values()))
+    def add(self, description: str) -> Task:
+        """Add a new task.
 
-    def add_task(self, description: str, priority: TaskPriority = TaskPriority.MEDIUM) -> Task:
+        Args:
+            description: The task description
+
+        Returns:
+            The created Task
+
+        Raises:
+            ValueError: If description is empty
+        """
         if not description or not description.strip():
-            raise ValueError("Task description cannot be empty")
+            raise ValueError("Description cannot be empty")
 
         task_id = self._id_gen.next_id()
-        task = Task(id=task_id, description=description.strip(), priority=priority)
-        self._tasks[task_id] = task
-        self._save()
+        task = Task(id=task_id, description=description.strip(), completed=False)
+        self._storage.save(task)
         return task
 
-    def get_all_tasks(self, status: Optional[TaskStatus] = None, priority: Optional[TaskPriority] = None) -> List[Task]:
-        tasks = list(self._tasks.values())
-        if status:
-            tasks = [t for t in tasks if t.status == status]
-        if priority:
-            tasks = [t for t in tasks if t.priority == priority]
-        return tasks
+    def list(self) -> List[Task]:
+        """List all tasks.
 
-    def search_tasks(self, query: str) -> List[Task]:
-        query = query.lower()
-        return [t for t in self._tasks.values() if query in t.description.lower()]
+        Returns:
+            List of all tasks (unsorted)
+        """
+        return self._storage.get_all()
 
-    def sort_tasks(self, tasks: List[Task], by: str = "id") -> List[Task]:
-        if by == "priority":
-            # HIGH (2) > MEDIUM (1) > LOW (0)
-            priority_order = {TaskPriority.HIGH: 2, TaskPriority.MEDIUM: 1, TaskPriority.LOW: 0}
-            return sorted(tasks, key=lambda t: priority_order.get(t.priority, 0), reverse=True)
-        elif by == "status":
-            return sorted(tasks, key=lambda t: t.status.value)
-        elif by == "id":
-            return sorted(tasks, key=lambda t: t.id)
-        return tasks
+    def get(self, task_id: int) -> Optional[Task]:
+        """Get a task by ID.
 
-    def update_task(self, task_id: int, description: Optional[str] = None, status: Optional[TaskStatus] = None, priority: Optional[TaskPriority] = None) -> Task:
-        if task_id not in self._tasks:
-            raise KeyError(f"Task with ID {task_id} not found")
+        Args:
+            task_id: The task ID
 
-        task = self._tasks[task_id]
-        if description is not None:
-            if not description.strip():
-                raise ValueError("Task description cannot be empty")
-            task.description = description.strip()
-        if status is not None:
-            task.status = status
-        if priority is not None:
-            task.priority = priority
+        Returns:
+            Task if found, None otherwise
+        """
+        return self._storage.get(task_id)
 
-        self._save()
+    def update(self, task_id: int, description: str) -> Task:
+        """Update a task's description.
+
+        Args:
+            task_id: The task ID
+            description: The new description
+
+        Returns:
+            The updated Task
+
+        Raises:
+            KeyError: If task not found
+            ValueError: If description is empty
+        """
+        task = self._storage.get(task_id)
+        if task is None:
+            raise KeyError(f"Task {task_id} not found")
+
+        if not description or not description.strip():
+            raise ValueError("Description cannot be empty")
+
+        task.description = description.strip()
+        self._storage.save(task)
         return task
 
-    def delete_task(self, task_id: int) -> bool:
-        if task_id in self._tasks:
-            del self._tasks[task_id]
-            self._save()
-            return True
-        raise KeyError(f"Task with ID {task_id} not found")
+    def delete(self, task_id: int) -> bool:
+        """Delete a task.
+
+        Args:
+            task_id: The task ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        return self._storage.delete(task_id)
+
+    def complete(self, task_id: int) -> Task:
+        """Toggle task completion status.
+
+        Args:
+            task_id: The task ID
+
+        Returns:
+            The updated Task
+
+        Raises:
+            KeyError: If task not found
+        """
+        task = self._storage.get(task_id)
+        if task is None:
+            raise KeyError(f"Task {task_id} not found")
+
+        task.completed = not task.completed
+        self._storage.save(task)
+        return task
+
+    def count(self) -> int:
+        """Return the number of tasks."""
+        return self._storage.count()

@@ -1,35 +1,46 @@
-import json
-import os
-from typing import List
-from src.core.models import Task, TaskStatus, TaskPriority
+"""In-memory storage for tasks.
 
-class Storage:
-    def __init__(self, filepath: str = "data/todos.json"):
-        self.filepath = filepath
-        self._ensure_file_exists()
+This module provides pure in-memory task storage.
+Data is NOT persisted - it resets when the application restarts.
+"""
 
-    def _ensure_file_exists(self):
-        os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
-        if not os.path.exists(self.filepath):
-            with open(self.filepath, 'w') as f:
-                json.dump([], f)
+from typing import Dict, List, Optional
+from src.core.models import Task
 
-    def load_tasks(self) -> List[Task]:
-        if not os.path.exists(self.filepath):
-            return []
-        try:
-            with open(self.filepath, 'r') as f:
-                data = json.load(f)
-                return [Task(
-                    id=item['id'],
-                    description=item['description'],
-                    status=TaskStatus(item['status']),
-                    priority=TaskPriority(item.get('priority', 'MEDIUM'))
-                ) for item in data]
-        except (json.JSONDecodeError, KeyError, ValueError):
-            return []
 
-    def save_tasks(self, tasks: List[Task]):
-        data = [task.to_dict() for task in tasks]
-        with open(self.filepath, 'w') as f:
-            json.dump(data, f, indent=2)
+class InMemoryStorage:
+    """Pure in-memory task storage.
+
+    All data is lost when the application restarts.
+    This is intentional per Phase-I spec (no persistence).
+    """
+
+    def __init__(self):
+        self._tasks: Dict[int, Task] = {}
+
+    def get_all(self) -> List[Task]:
+        """Return all tasks."""
+        return list(self._tasks.values())
+
+    def get(self, task_id: int) -> Optional[Task]:
+        """Get a task by ID."""
+        return self._tasks.get(task_id)
+
+    def save(self, task: Task) -> None:
+        """Save or update a task."""
+        self._tasks[task.id] = task
+
+    def delete(self, task_id: int) -> bool:
+        """Delete a task by ID. Returns True if deleted, False if not found."""
+        if task_id in self._tasks:
+            del self._tasks[task_id]
+            return True
+        return False
+
+    def clear(self) -> None:
+        """Clear all tasks (for testing)."""
+        self._tasks.clear()
+
+    def count(self) -> int:
+        """Return the number of tasks."""
+        return len(self._tasks)
