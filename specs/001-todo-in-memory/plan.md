@@ -1,123 +1,92 @@
-# Implementation Plan: Todo In-Memory CLI
+# Implementation Plan: Todo In-Memory Python Console App
 
-**Branch**: `001-todo-in-memory` | **Date**: 2026-01-02 | **Spec**: [spec.md](./spec.md)
+**Branch**: `001-todo-in-memory` | **Date**: 2026-01-03 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-todo-in-memory/spec.md`
 
 ## Summary
 
-Design and implement a clean, minimal in-memory Todo CLI application in Python 3.13+. The architecture follows a three-layer pattern (CLI, Core, Storage) with tasks stored in memory using Python data structures. All five core operations (add, list, update, delete, toggle) are supported via command-line arguments using argparse. Task IDs are auto-incremented integers stored in memory.
+Build a Python console-based todo CLI application with in-memory storage. The application supports five core operations (add, list, update, delete, complete) through argparse subcommands. Task IDs are sequential integers, data resets on restart, and the application maintains clean architecture with CLI, core, and utils layers.
 
 ## Technical Context
 
-**Language/Version**: Python 3.13+ (as per constitution and user requirements)
-**Primary Dependencies**: argparse (stdlib), dataclasses (stdlib)
-**Storage**: In-memory only (Python dict) - no persistence
-**Testing**: pytest (unit tests for core logic, integration tests for CLI)
-**Target Platform**: Cross-platform CLI (Windows, macOS, Linux)
-**Project Type**: Single Python package (CLI application)
-**Performance Goals**: Sub-5-second command execution, minimal memory footprint (<50MB)
-**Constraints**: No files, databases, or external services; data resets on restart
-**Scale/Scope**: Single-user local session (~100s of tasks max)
-
-## Architecture (User-Specified)
-
-```
-┌─────────────────────────────────────────┐
-│           CLI Layer                     │
-│      (src/cli/main.py)                  │
-│   - Parses commands with argparse       │
-│   - Prints output to console            │
-└────────────────┬────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────┐
-│           Core Layer                    │
-│      (src/core/service.py)              │
-│   - Task business logic                 │
-│   - Orchestrates storage operations     │
-└────────────────┬────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────┐
-│         Storage Layer                   │
-│     (src/core/storage.py)               │
-│   - In-memory dict for tasks            │
-│   - Auto-incremented task IDs           │
-│   - One instance per runtime            │
-└────────────────┬────────────────────────┘
-                 │
-                 ▼
-            Output / Errors
-```
-
-### Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| Task IDs auto-incremented in memory | Simple, deterministic, fits spec requirements |
-| One service instance per runtime | Single source of truth for task state |
-| Errors shown explicitly | No silent failures (constitution rule) |
-| No persistence layer | Phase I constraint - data resets on exit |
+**Language/Version**: Python 3.13+
+**Primary Dependencies**: argparse (standard library)
+**Storage**: In-memory (no persistence layer)
+**Testing**: pytest
+**Target Platform**: Console/CLI (Python environment)
+**Project Type**: Single project (console application)
+**Performance Goals**: <100ms per operation (p95)
+**Constraints**: Stateless per invocation, no interactive sessions, data resets on restart
+**Scale/Scope**: Single session, unlimited tasks during runtime, simple CLI interface
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Gate | Status | Notes |
-|------|--------|-------|
-| Spec-driven development | ✅ PASS | All functionality derived from spec.md |
-| Phase I constraints | ✅ PASS | In-memory only, CLI interface, no persistence |
-| Clean separation of concerns | ✅ PASS | CLI/Core/Storage layers defined |
-| Simplicity over optimization | ✅ PASS | Using stdlib only, minimal dependencies |
-| Forward compatibility | ✅ PASS | No future phase influence in Phase I design |
-| Spec is authority | ✅ PASS | No features beyond spec scope |
-| Smallest viable diff | ✅ PASS | Single package, focused scope |
+### Phase I Constraints Compliance
+
+- ✅ **Stateless Per Invocation**: CLI executes commands independently, no interactive REPL mode required
+- ✅ **No Persistence Layer**: In-memory storage only (FR-009, FR-008)
+- ✅ **Architecture Boundaries**: Clear separation of src/cli, src/core, src/utils
+- ✅ **CLI Interface**: Entry point via `python -m src.cli.main`
+- ✅ **Deterministic Behavior**: All inputs validated via argparse with clear error messages
+- ✅ **Commands Execute and Terminate**: No daemon processes (FR-008, Constitution §3.1)
+
+### Core Principles Compliance
+
+- ✅ **Principle 1 (Spec-Driven)**: All functionality derived from spec.md
+- ✅ **Principle 2 (Deterministic CLI)**: Argparse with validation and error handling
+- ✅ **Principle 3 (Clean Separation)**: CLI/Core/Utils boundaries maintained
+- ✅ **Principle 4 (Simplicity)**: Minimal implementation, no premature optimization
+- ✅ **Principle 5 (Forward Compatibility)**: No Phase II+ features considered
+
+### Phase Lock Compliance
+
+- ✅ **Feature Isolation**: One feature = one spec file
+- ✅ **No Scope Creep**: Only Phase I features implemented (FR-001 through FR-009)
+- ✅ **Out of Scope Respected**: No web UI, APIs, AI features, or persistence
+
+**CONCLUSION**: All gates passed. Proceeding to Phase 0 research.
 
 ## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/001-todo-in-memory/
+├── plan.md              # This file (/sp.plan command output)
+├── research.md          # Phase 0 output (/sp.plan command)
+├── data-model.md        # Phase 1 output (/sp.plan command)
+├── quickstart.md        # Phase 1 output (/sp.plan command)
+├── contracts/           # Phase 1 output (/sp.plan command)
+└── tasks.md             # Phase 2 output (/sp.tasks command - NOT created by /sp.plan)
+```
 
 ### Source Code (repository root)
 
 ```text
 src/
-├── __init__.py
-├── cli/
-│   ├── __init__.py
-│   └── main.py          # Entry point: python -m src.cli.main
-├── core/
-│   ├── __init__.py
-│   ├── models.py        # Task dataclass
-│   ├── storage.py       # InMemoryStorage (dict + auto-increment ID)
-│   └── service.py       # TaskService (business logic)
-└── utils/
-    └── __init__.py      # Shared utilities (empty for Phase I)
+├── cli/                 # User interaction layer
+│   └── main.py          # Entry point with argparse setup
+├── core/                # Business logic layer
+│   └── todo_manager.py  # Task management logic
+└── utils/               # Shared utility functions
+    └── validators.py    # Input validation helpers
 
 tests/
-├── __init__.py
-├── unit/
-│   ├── __init__.py
-│   ├── test_models.py   # Task dataclass tests
-│   ├── test_storage.py  # InMemoryStorage tests
-│   └── test_service.py  # TaskService tests
-└── integration/
-    ├── __init__.py
-    └── test_cli.py      # CLI command integration tests
+├── unit/                # Unit tests for core logic
+│   └── test_todo_manager.py
+└── integration/         # Integration tests for CLI commands
+    └── test_cli.py
+
+pyproject.toml           # Project configuration
+README.md                # Setup and usage documentation
 ```
 
-**Structure Decision**: Three-layer architecture as specified by user:
-- **CLI Layer** (`src/cli`): Command parsing and output
-- **Core Layer** (`src/core`): Models, Storage, and Service
-- **Utilities** (`src/utils`): Reserved for future phases
-
-### Data Flow
-
-| Operation | Flow |
-|-----------|------|
-| Add Task | CLI → Service.add() → Storage.create() |
-| View Tasks | CLI → Service.list() → Storage.get_all() → Output |
-| Update Task | CLI → Service.update() → Storage.modify() |
-| Delete Task | CLI → Service.delete() → Storage.remove() |
-| Toggle Complete | CLI → Service.toggle() → Storage.update_status() |
+**Structure Decision**: Single project structure (Option 1) selected because this is a console application with clean separation of CLI, core, and utils layers as specified in the constitution (§3.1). All source code resides under `src/` with tests in `tests/`. This structure maintains the required boundaries and enables easy testing.
 
 ## Complexity Tracking
 
-*No constitution violations requiring justification.*
+> **No constitution violations requiring justification**
+
+All design decisions align with constitution principles and Phase I constraints.

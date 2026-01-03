@@ -1,6 +1,6 @@
 # Quickstart: Todo In-Memory CLI
 
-**Feature**: 001-todo-in-memory | **Date**: 2026-01-02
+**Feature**: 001-todo-in-memory | **Date**: 2026-01-03
 
 ## Installation
 
